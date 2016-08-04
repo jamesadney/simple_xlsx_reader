@@ -52,19 +52,22 @@ module SimpleXlsxReader
     end
   end
 
-  def self.open(file_path)
-    Document.new(file_path).tap(&:sheets)
+  def self.open(file_path, options = {})
+    Document.new(file_path, options).tap(&:sheets)
   end
 
   class Document
     attr_reader :file_path
 
-    def initialize(file_path)
+    def initialize(file_path, options = {})
+      @sheet_whitelist = options[:sheets]
       @file_path = file_path
     end
 
     def sheets
-      @sheets ||= Mapper.new(xml).load_sheets
+      options = {}
+      options[:only] = @sheet_whitelist unless @sheet_whitelist.nil?
+      @sheets ||= Mapper.new(xml).load_sheets(options)
     end
 
     def to_hash
@@ -152,8 +155,10 @@ module SimpleXlsxReader
       DATE_SYSTEM_1900 = Date.new(1899, 12, 30)
       DATE_SYSTEM_1904 = Date.new(1904, 1, 1)
 
-      def load_sheets
+      def load_sheets(options = {})
+        sheet_names = options[:only]
         sheet_toc.each_with_index.map do |(sheet_name, _sheet_number), i|
+          next if sheet_names && !sheet_names.include?(sheet_name)
           parse_sheet(sheet_name, xml.sheets[i], xml.sheet_rels[i])  # sheet_number is *not* the index into xml.sheets
         end
       end
